@@ -115,8 +115,6 @@ all.config
 *.kdev4
 
 #orangepi ignore
-uImage*
-zImage*
 Image
 *.img
 *.img1
