@@ -116,6 +116,8 @@ all.config
 
 #orangepi ignore
 Image
+uImage*
+zImage*
 *.img
 *.img1
 *.img2
