@@ -1331,12 +1331,7 @@ CONFIG_RTL8187=m
 # CONFIG_ATH_COMMON is not set
 # CONFIG_B43 is not set
 # CONFIG_B43LEGACY is not set
-CONFIG_BCMDHD=m
-CONFIG_BCMDHD_FW_PATH="/system/etc/firmware/fw_bcmdhd.bin"
-CONFIG_BCMDHD_NVRAM_PATH="/system/etc/firmware/nvram.txt"
-CONFIG_BCMDHD_CONFIG_PATH="/system/etc/firmware/config.txt"
-CONFIG_BCMDHD_OOB=y
-# CONFIG_BCMDHD_SDIO_IRQ is not set
+# CONFIG_BCMDHD is not set
 # CONFIG_BRCMFMAC is not set
 # CONFIG_HOSTAP is not set
 # CONFIG_IWM is not set
