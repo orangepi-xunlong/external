@@ -126,3 +126,6 @@ zImage*
 update.sh
 download.sh
 vmlinux
+!sys_config.bin
+!boot0.bin
+!uboot.bin
