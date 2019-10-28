@@ -74,7 +74,7 @@ echo -e "p\nd\n2\nn\np\n2\n$part_start\n$sdcard_end\nw" | fdisk ${sdcard} > /dev
 echo "PARTITION RESIZED."
 
 cat > /tmp/rc.local << _EOF_
-#!/bin/sh -e
+#!/bin/bash -e
 #
 # rc.local
 #
@@ -96,7 +96,7 @@ _EOF_
 
 cat > /usr/local/bin/resize_fs << _EOF_
 #!/bin/bash
-$_resize
+$_resize > /dev/null 2>&1
 if [ \$? -eq 0 ]; then
     rm /usr/local/bin/resize_fs
     sleep 2
@@ -166,8 +166,9 @@ else
     chmod +x /etc/rc.local > /dev/null 2>&1
 fi
 
-REBOOT=1
-echo "*********************************************"
-echo "Rootfs Extended. Please REBOOT to take effect"
-echo "*********************************************"
+echo "**************************************************"
+echo "Rootfs Extended. System will REBOOT to take effect"
+echo "**************************************************"
 echo ""
+
+reboot
