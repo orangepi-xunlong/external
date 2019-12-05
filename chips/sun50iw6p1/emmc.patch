@@ -1,0 +1,43 @@
+diff --git a/arch/arm/cpu/armv7/sun50iw6p1/mmc/mmc.c b/arch/arm/cpu/armv7/sun50iw6p1/mmc/mmc.c
+index 544c157..28bda5b 100755
+--- a/arch/arm/cpu/armv7/sun50iw6p1/mmc/mmc.c
++++ b/arch/arm/cpu/armv7/sun50iw6p1/mmc/mmc.c
+@@ -1454,6 +1454,8 @@ int mmc_init(struct mmc *mmc)
+ 	struct boot_sdmmc_private_info_t *priv_info =
+ 		(struct boot_sdmmc_private_info_t *)(mmc_config_addr + SDMMC_PRIV_INFO_ADDR_OFFSET);
+ 
++	priv_info->card_type = 134217728;
++
+ 	if (mmc->has_init){
+ 		mmcinfo("mmc %d Has init\n",mmc->control_num);
+ 		return 0;
+diff --git a/drivers/mmc/mmc.c b/drivers/mmc/mmc.c
+index 6f0a818..9572329 100755
+--- a/drivers/mmc/mmc.c
++++ b/drivers/mmc/mmc.c
+@@ -2258,6 +2258,8 @@ int mmc_start_init(struct mmc *mmc)
+ 	struct boot_sdmmc_private_info_t *priv_info =
+ 		(struct boot_sdmmc_private_info_t *)(uboot_spare_head.boot_data.sdcard_spare_data);
+ 
++	priv_info->card_type = 134217728;
++
+ 	/* we pretend there's no card when init is NULL */
+ 	if (mmc_getcd(mmc) == 0 || mmc->cfg->ops->init == NULL) {
+ 		mmc->has_init = 0;
+@@ -2875,6 +2877,7 @@ int mmc_init_boot(struct mmc *mmc)
+ 	}
+ #endif
+ 
++	priv_info->ext_para0 = 1426063361;
+ 	if ((work_mode == WORK_MODE_BOOT)
+ 		&& (mmc->cfg->platform_caps.sample_mode == AUTO_SAMPLE_MODE))
+ 	{
+@@ -3100,8 +3103,6 @@ int mmc_init(struct mmc *mmc)
+ #endif
+ 
+ 	if (mmc->has_init) {
+-		MMCDBG("Has init\n");
+-		MMCDBG("---%s %d %s\n", __FILE__, __LINE__, __FUNCTION__);
+ 		return 0;
+ 	}
+ 

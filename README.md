@@ -1,2 +1,1 @@
-# OrangePiH3_external
-The externall file for OrangePi H3
+The external files for Orange Pi Linux SDK
