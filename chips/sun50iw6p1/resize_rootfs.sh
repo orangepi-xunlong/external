@@ -33,6 +33,6 @@ EOF
 	resize2fs ${DEVICE}p${PART}
 }
 
-resize
+resize 1>/tmp/resize_rootfs.log 2>&1
 
 echo "Done!"
