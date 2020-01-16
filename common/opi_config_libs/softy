@@ -1,0 +1,438 @@
+#!/bin/bash
+
+#
+# load functions, local first
+#
+
+OPILIB=/usr/local/sbin/opi_config_libs
+
+if  [[ -f debian-config-jobs ]]; then source debian-config-jobs;
+	elif  [[ -f ${OPILIB}/jobs.sh ]]; then \
+	source ${OPILIB}/jobs.sh;
+	else exit 1;
+fi
+
+if  [[ -f debian-config-submenu ]]; then source debian-config-submenu;
+	elif  [[ -f ${OPILIB}/submenu.sh ]]; then \
+	source ${OPILIB}/submenu.sh;
+	else exit 1;
+fi
+
+if  [[ -f debian-config-functions ]]; then source debian-config-functions;
+	elif  [[ -f ${OPILIB}/functions.sh ]]; then \
+	source ${OPILIB}/functions.sh;
+	else exit 1;
+fi
+
+if  [[ -f debian-config-functions-network ]]; then source debian-config-functions-network;
+	elif  [[ -f ${OPILIB}/functions-network.sh ]]; then \
+	source ${OPILIB}/functions-network.sh;
+	else exit 1;
+fi
+
+alive_port ()
+{
+#
+# Displays URL to the service $1 on port $2 or just that is active if $3 = boolean $4 = path
+#
+if [[ -n $(netstat -lnt | awk '$6 == "LISTEN" && $4 ~ ".'$2'"') ]]; then
+	if [[ $3 == boolean ]]; then
+		DESCRIPTION="$1 is \Z1active\Z0";
+	   elif [[ $3 == ssl ]]; then
+		DESCRIPTION="Active on https://${serverIP}:\Z1$2\Z0$4";
+		else
+		DESCRIPTION="Active on http://${serverIP}:\Z1$2\Z0$4";
+	fi
+else
+DESCRIPTION="$1";
+fi
+}
+
+install_samba ()
+{
+#
+# install Samba file sharing
+#
+local SECTION="Samba"
+SMBUSER=$(whiptail --inputbox "What is your samba username?" 8 78 $SMBUSER --title "$SECTION" 3>&1 1>&2 2>&3)
+exitstatus=$?; if [ $exitstatus = 1 ]; then exit 1; fi
+SMBPASS=$(whiptail --inputbox "What is your samba password?" 8 78 $SMBPASS --title "$SECTION" 3>&1 1>&2 2>&3)
+exitstatus=$?; if [ $exitstatus = 1 ]; then exit 1; fi
+SMBGROUP=$(whiptail --inputbox "What is your samba group?" 8 78 $SMBGROUP --title "$SECTION" 3>&1 1>&2 2>&3)
+exitstatus=$?; if [ $exitstatus = 1 ]; then exit 1; fi
+#
+debconf-apt-progress -- apt-get -y install samba samba-common-bin samba-vfs-modules
+useradd $SMBUSER
+echo -ne "$SMBPASS\n$SMBPASS\n" | passwd $SMBUSER >/dev/null 2>&1
+echo -ne "$SMBPASS\n$SMBPASS\n" | smbpasswd -a -s $SMBUSER >/dev/null 2>&1
+service samba stop | service smbd stop >/dev/null 2>&1
+cp /etc/samba/smb.conf /etc/samba/smb.conf.stock
+cat > /etc/samba/smb.conf.tmp << EOF
+[global]
+	workgroup = SMBGROUP
+	server string = %h server
+	hosts allow = SUBNET
+	log file = /var/log/samba/log.%m
+	max log size = 1000
+	syslog = 0
+	panic action = /usr/share/samba/panic-action %d
+	load printers = yes
+	printing = cups
+	printcap name = cups
+	min receivefile size = 16384
+	write cache size = 524288
+	getwd cache = yes
+	socket options = TCP_NODELAY IPTOS_LOWDELAY
+
+[printers]
+	comment = All Printers
+	path = /var/spool/samba
+	browseable = no
+	public = yes
+	guest ok = yes
+	writable = no
+	printable = yes
+	printer admin = SMBUSER
+
+[print$]
+	comment = Printer Drivers
+	path = /etc/samba/drivers
+	browseable = yes
+	guest ok = no
+	read only = yes
+	write list = SMBUSER
+
+[ext]
+	comment = Storage
+	path = /ext
+	writable = yes
+	public = no
+	valid users = SMBUSER
+	force create mode = 0644
+EOF
+sed -i "s/SMBGROUP/$SMBGROUP/" /etc/samba/smb.conf.tmp
+sed -i "s/SMBUSER/$SMBUSER/" /etc/samba/smb.conf.tmp
+sed -i "s/SUBNET/$SUBNET/" /etc/samba/smb.conf.tmp
+dialog --backtitle "$BACKTITLE" --title "Review samba configuration" --no-collapse --editbox /etc/samba/smb.conf.tmp 30 0 2> /etc/samba/smb.conf.tmp.out
+if [[ $? = 0 ]]; then
+	mv /etc/samba/smb.conf.tmp.out /etc/samba/smb.conf
+	install -m 755 -g $SMBUSER -o $SMBUSER -d /ext
+	service service smbd stop >/dev/null 2>&1
+	sleep 3
+	service service smbd start >/dev/null 2>&1
+fi
+}
+
+install_docker ()
+{
+echo "deb https://download.docker.com/linux/${family,,} $distribution edge" > /etc/apt/sources.list.d/docker.list
+curl -fsSL "https://download.docker.com/linux/${family,,}/gpg" | apt-key add -qq - > /dev/null 2>&1
+debconf-apt-progress -- apt-get update
+debconf-apt-progress -- apt-get install -y -qq --no-install-recommends docker-ce
+}
+
+install_syncthing ()
+{
+#
+# Install Personal cloud https://syncthing.net/
+#
+
+curl -s https://syncthing.net/release-key.txt | apt-key add - >/dev/null 2>&1
+echo "deb https://apt.syncthing.net/ syncthing stable" | tee /etc/apt/sources.list.d/syncthing.list >/dev/null 2>&1
+debconf-apt-progress -- apt-get update
+debconf-apt-progress -- apt-get -y install syncthing
+
+# increase open file limit
+if !(grep -qs "fs.inotify.max_user_watches=204800" "/etc/sysctl.conf");then
+	echo -e "fs.inotify.max_user_watches=204800" | tee -a /etc/sysctl.conf
+fi
+add_choose_user
+mv /lib/systemd/system/syncthing@.service /lib/systemd/system/syncthing@${CHOSEN_USER}.service
+
+# create startup files
+systemctl enable syncthing@${CHOSEN_USER}.service >/dev/null 2>&1
+systemctl start syncthing@${CHOSEN_USER}.service >/dev/null 2>&1
+systemctl stop syncthing@${CHOSEN_USER}.service >/dev/null 2>&1
+systemctl start syncthing@${CHOSEN_USER}.service >/dev/null 2>&1
+# wait until config file is created
+while :
+do
+    if [[ -f /home/${CHOSEN_USER}/.config/syncthing/config.xml ]]; then break; fi
+    sleep 1
+done
+# change to server IP
+sed -i "s/127.0.0.1/${serverIP}/" /home/${CHOSEN_USER}/.config/syncthing/config.xml
+systemctl restart syncthing@${CHOSEN_USER}.service >/dev/null 2>&1
+dialog --backtitle "$BACKTITLE" --title "Please wait" --msgbox "\nIt can take several minutes before Syncthing UI becomes available! " 7 70
+}
+
+
+function check_status
+{
+#
+# Check if service is already installed and show it's status
+#
+
+	dialog --backtitle "$BACKTITLE" --title "Please wait" --infobox "\nLoading install info ... " 5 28
+	LIST=()
+	LIST_CONST=26
+
+	# Samba
+	SAMBA_STATUS="$(check_if_installed samba && echo "on" || echo "off" )"
+	alive_port "Windows compatible file sharing" "445" "boolean"
+	LIST+=( "Samba" "$DESCRIPTION" "$SAMBA_STATUS" )
+
+	# Synthing
+	SYNCTHING_STATUS="$([[ -f /usr/bin/syncthing ]] && echo "on" || echo "off" )"
+	alive_port "Personal cloud @syncthing.net" "8384"
+	LIST+=( "Syncthing" "$DESCRIPTION" "$SYNCTHING_STATUS" )
+
+	# OpenHab
+	OPENHAB_STATUS="$([[ -f /usr/bin/openhab-cli ]] && echo "on" || echo "off" )"
+        alive_port "Openhab2 smarthome suite" "8080"
+        LIST+=( "OpenHAB" "$DESCRIPTION" "$OPENHAB_STATUS" )
+
+	# NCP
+	NCP_STATUS="$( [[ -d /var/www/nextcloud ]] && echo "on" || echo "off" )"
+	alive_port "Nextcloud personal cloud" "443"
+	[[ "$family" != "Ubuntu" ]] && LIST+=( "NCP" "$DESCRIPTION" "$NCP_STATUS" ) \
+	&& LIST_CONST=$((LIST_CONST + 1))
+
+	# OMV
+	OMV_STATUS="$(check_if_installed openmediavault && echo "on" || echo "off" )"
+	[[ "$family" != "Ubuntu" ]] && LIST+=( "OMV" "OpenMediaVault NAS solution" "$OMV_STATUS" ) \
+	&& LIST_CONST=$((LIST_CONST + 1))
+
+	# Plex media server
+	PLEX_STATUS="$((check_if_installed plexmediaserver || check_if_installed plexmediaserver-installer) \
+	&& echo "on" || echo "off" )"
+	alive_port "Plex media server" "32400"
+	LIST+=( "Plex" "$DESCRIPTION" "$PLEX_STATUS" )
+
+	# Docker
+	DOCKER_STATUS="$((check_if_installed docker-ce) && echo "on" || echo "off" )"
+	LIST+=( "Docker" "Run applications by using containers" "$DOCKER_STATUS")
+}
+
+#------------------------------------------------------------------------------------------------------------------------------------------
+# Main choices
+#------------------------------------------------------------------------------------------------------------------------------------------
+
+# check for root
+#
+if [[ $EUID != 0 ]]; then
+	dialog --title "Warning" --infobox "\nThis script requires root privileges.\n\nExiting ..." 7 41
+	sleep 3
+	exit
+fi
+
+# nameserver backup
+if [ -d /etc/resolvconf/resolv.conf.d ]; then
+	echo 'nameserver 8.8.8.8' > /etc/resolvconf/resolv.conf.d/head
+	resolvconf -u &> /dev/null
+fi
+
+# Create a safe temporary directory
+TEMP_DIR=$(mktemp -d || exit 1)
+chmod 700 ${TEMP_DIR}
+trap "rm -rf \"${TEMP_DIR}\" ; exit 0" 0 1 2 3 15
+
+# Install basic stuff, we have to wait for other apt tasks to finish
+# (eg unattended-upgrades)
+i=0
+tput sc
+while fuser /var/lib/dpkg/lock >/dev/null 2>&1 ; do
+	case $(($i % 4)) in
+		0 ) j="-" ;;
+		1 ) j="\\" ;;
+		2 ) j="|" ;;
+		3 ) j="/" ;;
+	esac
+	tput rc
+	echo -en "\r[$j] Waiting for other software managers to finish..."
+	sleep 0.5
+	((i=i+1))
+done
+
+apt-get -qq -y --no-install-recommends install curl debconf-utils html2text apt-transport-https dialog whiptail lsb-release bc expect > /dev/null
+
+# gather some info
+#
+TTY_X=$(($(stty size | awk '{print $2}')-6)) # determine terminal width
+TTY_Y=$(($(stty size | awk '{print $1}')-6)) # determine terminal height
+distribution=$(lsb_release -cs)
+family=$(lsb_release -is)
+DEFAULT_ADAPTER=$(ip -4 route ls | grep default | tail -1 | grep -Po '(?<=dev )(\S+)')
+serverIP=$(ip -4 addr show dev $DEFAULT_ADAPTER | awk '/inet/ {print $2}' | cut -d'/' -f1)
+set ${serverIP//./ }
+SUBNET="$1.$2.$3."
+hostnamefqdn=$(hostname -f)
+mysql_pass=""
+BACKTITLE="Softy - Armbian post deployment scripts, https://www.armbian.com"
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+#check_status
+
+# main dialog routine
+#
+DIALOG_CANCEL=1
+DIALOG_ESC=255
+
+while true; do
+
+	# prepare menu items
+	check_status
+	LISTLENGTH="$((${#LIST[@]}/2))"
+	exec 3>&1
+	selection=$(dialog --backtitle "$BACKTITLE" --title "Installing to $family $distribution" --colors --clear --cancel-label \
+	"Cancel" --ok-label "Install" --checklist "\nChoose what you want to install:\n " $LIST_CONST 71 18 "${LIST[@]}" 2>&1 1>&3)
+	exit_status=$?
+	exec 3>&-
+	case $exit_status in
+	$DIALOG_ESC | $DIALOG_CANCEL)
+		clear
+		exit 1
+		;;
+	esac
+
+	# cycle through all install options
+	i=0
+if ! is_package_manager_running; then
+	while [ "$i" -lt "$LISTLENGTH" ]; do
+
+		if [[ "$selection" == *Samba* && "$SAMBA_STATUS" != "on" ]]; then
+			install_samba
+			selection=${selection//Samba/}
+		fi
+
+		if [[ "$selection" == *CUPS* && "$CUPS_STATUS" != "on" ]]; then
+			install_cups
+			selection=${selection//CUPS/}
+		fi
+
+		if [[ "$selection" == *headend* && "$TVHEADEND_STATUS" != "on" ]]; then
+			install_tvheadend
+			selection=${selection//\"TV headend\"/}
+		fi
+
+		if [[ "$selection" == *Minidlna* && "$MINIDLNA_STATUS" != "on" ]]; then
+			install_packet "minidlna" "Install lightweight DLNA/UPnP-AV server"
+			selection=${selection//Minidlna/}
+		fi
+
+		if [[ "$selection" == *ISPConfig* && "$ISPCONFIG_STATUS" != "on" ]]; then
+			server_conf
+			if [[ "$MYSQL_PASS" == "" ]]; then
+				dialog --msgbox "Mysql password can't be blank. Exiting..." 7 70
+				exit
+			fi
+			if [[ "$(echo $HOSTNAMEFQDN | grep -P '(?=^.{1,254}$)(^(?>(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$)')" == "" ]]; then
+				dialog --msgbox "Invalid FQDN. Exiting..." 7 70
+				exit
+			fi
+			choose_webserver; install_basic; install_DashNTP; install_MySQL; install_MySQLDovecot; install_Virus; install_$server;
+			install_phpmyadmin
+			[[ -z "$(dpkg --print-architecture | grep arm)" ]] && install_hhvm
+			create_ispconfig_configuration;install_PureFTPD;install_Stats;install_Bind;
+			install_Jailkit; install_Fail2BanDovecot; install_Fail2BanRulesDovecot;
+			install_ISPConfig
+			selection=${selection//ISPConfig/}
+		fi
+
+		if [[ "$selection" == *Syncthing* && "$SYNCTHING_STATUS" != "on" ]]; then
+			install_syncthing
+			selection=${selection//Syncthing/}
+		fi
+
+		if [[ "$selection" == *Hassio* && "$HASS_STATUS" != "on" ]]; then
+			install_hassio
+			selection=${selection//Hassio/}
+		fi
+
+                if [[ "$selection" == *OpenHAB* && "$OPENHAB_STATUS" != "on" ]]; then
+                        install_openhab
+                        selection=${selection//OpenHAB/}
+                fi
+
+		if [[ "$selection" == *server* && "$VPN_SERVER_STATUS" != "on" ]]; then
+			install_vpn_server
+			selection=${selection//\"VPN server\"/}
+		fi
+
+		if [[ "$selection" == *client* && "$VPN_CLIENT_STATUS" != "on" ]]; then
+			install_vpn_client
+			selection=${selection//\"VPN client\"/}
+		fi
+                if [[ "$selection" == *NCP* && "$NCP_STATUS" != "on" ]]; then
+			install_ncp
+                        selection=${selection//NCP/}
+		fi
+
+		if [[ "$selection" == *OMV* && "$OMV_STATUS" != "on" ]]; then
+			install_omv
+			selection=${selection//OMV/}
+		fi
+
+		if [[ "$selection" == *Plex* && "$PLEX_STATUS" != "on" ]]; then
+			install_plex_media_server
+			selection=${selection//Plex/}
+		fi
+
+		if [[ "$selection" == *Emby* && "$EMBY_STATUS" != "on" ]]; then
+			install_emby_server
+			selection=${selection//Emby/}
+		fi
+
+		if [[ "$selection" == *Radarr* && "$RADARR_STATUS" != "on" ]]; then
+			install_radarr
+			selection=${selection//Radarr/}
+		fi
+
+		if [[ "$selection" == *Sonarr* && "$SONARR_STATUS" != "on" ]]; then
+			install_sonarr
+			selection=${selection//Sonarr/}
+		fi
+
+		if [[ "$selection" == *hole* && "$PI_HOLE_STATUS" != "on" ]]; then
+			curl -L "https://install.pi-hole.net" | bash
+			selection=${selection//\"Pi hole\"/}
+		fi
+
+                if [[ "$selection" == *Docker* && "$DOCKER_STATUS" != "on" ]]; then
+                       install_docker
+                       selection=${selection//Docker/}
+                fi
+
+		if [[ "$selection" == *Transmission* && "$TRANSMISSION_STATUS" != "on" ]]; then
+			install_transmission
+			selection=${selection//Transmission/}
+			dialog --title "Seed Armbian torrents" --backtitle "$BACKTITLE" --yes-label "Yes" --no-label "No" --yesno "\
+			\nDo you want to help the community and seed armbian torrent files? It will ensure faster downloads for everyone.\
+			\n\nApproximately 80GB disk space is required." 11 44
+				if [[ $? = 0 ]]; then
+					install_transmission_seed_armbian_torrents
+				fi
+		fi
+
+		if [[ "$selection" == *UrBackup* && "$URBACKUP_STATUS" != "on" ]]; then
+			install_urbackup
+			selection=${selection//UrBackup/}
+		fi
+
+		if [[ "$selection" == *Mayan* && "$MAYAN_STATUS" != "on" ]]; then
+			if [[ "$DOCKER_STATUS" == "off" ]]; then
+			install_docker
+			fi
+			curl -fsSL https://get.mayan-edms.com | bash
+			selection=${selection//Mayan/}
+		fi
+
+		i=$[$i+1]
+	done
+
+fi
+
+	# reread statuses
+	check_status
+done
+
