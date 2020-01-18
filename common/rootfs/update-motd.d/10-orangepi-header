@@ -7,7 +7,7 @@ HOSTNAME=`hostname`
 if [ ${HOSTNAME} = 'orangepi3' ];then
 	BOARDNAME="Orange Pi 3"
 elif [ ${HOSTNAME} = 'orangepilite2' ];then
-	BOARDNAME="Orange Pi Lite2"
+	BOARDNAME="OPi Lite 2"
 elif [ ${HOSTNAME} = 'orangepioneplus' ];then
 	BOARDNAME="OPi One Plus"
 fi
