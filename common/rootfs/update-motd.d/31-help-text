@@ -27,7 +27,8 @@ if [ -z "$DISTRIB_RELEASE" ] && [ -x /usr/bin/lsb_release ]; then
 	DISTRIB_RELEASE=$(lsb_release -sr)
 fi
 
-URL="https://help.ubuntu.com/"
+#URL="https://help.ubuntu.com/"
+URL="http://www.orangepi.org/"
 if uname -r | grep -qs "\-server"; then
 	URL="https://help.ubuntu.com/$DISTRIB_RELEASE/serverguide/C"
 fi

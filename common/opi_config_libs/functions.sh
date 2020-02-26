@@ -7,7 +7,7 @@ function main(){
 
 	DIALOG_CANCEL=1
 	DIALOG_ESC=255
-	BOARD_NAME="OrangePi 3"
+	BOARD_NAME=$(hostname)
 	DISTRO=$(lsb_release -is)
 	DISTROID=$(lsb_release -sc)
 	KERNELID=$(uname -r)
@@ -486,5 +486,4 @@ function exceptions ()
 			TARGET_FAMILY=$(cat /proc/cpuinfo | grep "Hardware" | sed 's/^.*Allwinner //' | awk '{print $1;}')
 		fi
 	fi
-
 }
