@@ -1884,8 +1884,6 @@ clocks {
          <0x0 0x01f015c0 0x0 0x0>;
    clocks = <&clk_pll_audio>,<&clk_adda>;
 
-   gpio-spk = <&pio 0 16 1 1 1 1>;
-
    spkervol = <0x1f>;
    maingain = <0x4>;
    adcagc_cfg = <0x0>;
