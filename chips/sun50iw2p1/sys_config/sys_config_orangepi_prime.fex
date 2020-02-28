@@ -950,7 +950,7 @@ standby_led		= "gpio_pin_2"
 ;--------------------------------
 [usbc0]
 usbc0_used          = 1
-usb_port_type       = 2
+usb_port_type       = 1
 usb_detect_type     = 0
 usb_detect_mode     = 0
 usb_id_gpio         = port:PA21<0><1><default><default>
