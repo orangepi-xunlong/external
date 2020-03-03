@@ -20,6 +20,9 @@ elif [ ${HOSTNAME} = 'orangepizeroplus' ];then
 	BOARDNAME="OPi Zero Plus"
 elif [ ${HOSTNAME} = 'orangepizeroplus2h5' ];then
 	BOARDNAME="OPi Zero Plus 2"
+# Allwinner A64
+elif [ ${HOSTNAME} = 'orangepiwin' ];then
+	BOARDNAME="Orange Pi Win"
 fi
 
 KERNELID=$(uname -r)
