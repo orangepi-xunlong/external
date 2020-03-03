@@ -11,5 +11,7 @@
 - **Allwinner H3**
     
 - **Allwinner H5**
+
+- **Allwinner A64**
     
 - **Allwinner H6**
