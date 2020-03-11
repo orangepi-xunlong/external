@@ -1,15 +1,16 @@
 #!/bin/sh
 
-set -e
-
 if [ "$(id -u)" -ne "0" ]; then
 	echo "This script requires root."
 	exit 1
 fi
 
-set -x
-
 DEVICE="/dev/mmcblk0"
+
+if [ -b "/dev/mmcblk1" ]; then
+	DEVICE="/dev/mmcblk1"
+fi
+
 PART="2"
 
 resize() {
@@ -28,12 +29,10 @@ $start
 
 w
 EOF
-	set -e
-
 	partx -u ${DEVICE}
 	resize2fs ${DEVICE}p${PART}
 }
 
-resize
+resize 1>/tmp/resize_rootfs.log 2>&1
 
 echo "Done!"

@@ -23,6 +23,28 @@ elif [ ${HOSTNAME} = 'orangepizeroplus2h5' ];then
 # Allwinner A64
 elif [ ${HOSTNAME} = 'orangepiwin' ];then
 	BOARDNAME="Orange Pi Win"
+# Allwinner H2+
+elif [ ${HOSTNAME} = 'orangepir1' ];then
+        BOARDNAME="Orange Pi R1"
+elif [ ${HOSTNAME} = 'orangepizero' ];then
+        BOARDNAME="Orange Pi Zero"
+# Allwinner H3
+elif [ ${HOSTNAME} = 'orangepi2' ];then
+        BOARDNAME="Orange Pi 2"
+elif [ ${HOSTNAME} = 'orangepipc' ];then
+        BOARDNAME="Orange Pi Pc"
+elif [ ${HOSTNAME} = 'orangepione' ];then
+        BOARDNAME="Orange Pi One"
+elif [ ${HOSTNAME} = 'orangepilite' ];then
+        BOARDNAME="Orange Pi Lite"
+elif [ ${HOSTNAME} = 'orangepipcplus' ];then
+        BOARDNAME="OPi Pc Plus"
+elif [ ${HOSTNAME} = 'orangepiplus' ];then
+        BOARDNAME="Orange Pi Plus"
+elif [ ${HOSTNAME} = 'orangepiplus2e' ];then
+        BOARDNAME="OPi Plus 2E"
+elif [ ${HOSTNAME} = 'orangepizeroplus2' ];then
+        BOARDNAME="OPi Zero Plus 2"
 fi
 
 KERNELID=$(uname -r)
