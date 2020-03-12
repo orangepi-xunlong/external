@@ -38,8 +38,8 @@ led_state = 0
 
 [boot_init_gpio]
 used = 1
-gpio0 = port:PL10<1><default><default><1>
-gpio1 = port:PA17<1><default><default><0>
+gpio0 = port:PL10<1><default><default><0>
+gpio1 = port:PA17<1><default><default><1>
 
 [recovery_para]
 used = 1
