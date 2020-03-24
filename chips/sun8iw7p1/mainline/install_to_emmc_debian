@@ -18,7 +18,7 @@ _format=${1}
 
 fatsize=64
 
-sdcard="/dev/mmcblk2"
+sdcard="/dev/mmcblk1"
 odir="/tmp/_extdir"
 bootdir="/tmp/_fatdir"
 

@@ -7,10 +7,6 @@ fi
 
 DEVICE="/dev/mmcblk0"
 
-if [ -b "/dev/mmcblk1" ]; then
-	DEVICE="/dev/mmcblk1"
-fi
-
 PART="2"
 
 resize() {

@@ -34,6 +34,9 @@ function display() {
 
 function getboardtemp() {
 	board_temp=$(expr $(cat /sys/class/thermal/thermal_zone0/temp))
+        if [ "$board_temp" -ge "1000" ];then
+                board_temp=$(expr $(cat /sys/class/thermal/thermal_zone0/temp) / 1000)
+        fi
 } # getboardtemp
 
 #function get_ip_addresses() {
