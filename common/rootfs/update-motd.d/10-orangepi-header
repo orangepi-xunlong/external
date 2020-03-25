@@ -43,7 +43,7 @@ elif [ ${HOSTNAME} = 'orangepiplus' ];then
         BOARDNAME="Orange Pi Plus"
 elif [ ${HOSTNAME} = 'orangepiplus2e' ];then
         BOARDNAME="OPi Plus 2E"
-elif [ ${HOSTNAME} = 'orangepizeroplus2' ];then
+elif [ ${HOSTNAME} = 'orangepizeroplus2h3' ];then
         BOARDNAME="OPi Zero Plus 2"
 fi
 
